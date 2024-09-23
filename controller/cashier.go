@@ -1,0 +1,110 @@
+package controller
+
+import (
+	"fmt"
+	"my-fiber-app/models"
+	"strconv"
+	"time"
+
+	db "my-fiber-app/config"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+func validateCashierInput(data map[string]string, requiredFields []string) (string, bool) {
+	for _, field := range requiredFields {
+		if value, exists := data[field]; !exists || value == "" {
+			return field + " is required!", false
+		}
+	}
+	return "", true
+}
+
+func CahierList(c *fiber.Ctx) error {
+	var cashiers []models.Cashier
+
+	// Установка значений по умолчанию
+	limit, err := strconv.Atoi(c.Query("limit", "10")) // Значение по умолчанию 10
+	if err != nil || limit <= 0 {                      // Проверка на корректность и положительность
+		limit = 10
+	}
+
+	skip, err := strconv.Atoi(c.Query("skip", "0")) // Значение по умолчанию 0
+	if err != nil || skip < 0 {                     // Проверка на корректность и неотрицательность
+		skip = 0
+	}
+
+	fmt.Printf("Fetching cashiers with limit: %d, skip: %d\n", limit, skip) // Отладочное сообщение
+
+	result := db.DB.Limit(limit).Offset(skip).Find(&cashiers)
+	if result.Error != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"message": "Error fetching cashiers: " + result.Error.Error(),
+		})
+	}
+
+	var count int64
+	db.DB.Model(&models.Cashier{}).Count(&count)
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"message": "Cashiers list",
+		"data":    cashiers,
+		"count":   count,
+	})
+}
+func GetCashierDetails(c *fiber.Ctx) error {
+	return nil
+}
+func CreateCashier(c *fiber.Ctx) error {
+	var data map[string]string
+	if err := c.BodyParser(&data); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false, // Изменено на false
+			"message": "Invalid data",
+		})
+	}
+
+	// Перечисляем обязательные поля для проверки
+	requiredFields := []string{"name", "passcode"}
+
+	// Валидация входных данных
+	if message, valid := validateCashierInput(data, requiredFields); !valid {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": message,
+		})
+	}
+
+	// Создание объекта кассира
+	cashier := models.Cashier{
+		Name:      data["name"],
+		Passcode:  data["passcode"],
+		CreatedAt: time.Now(), // Установлено текущее время
+		UpdatedAt: time.Now(), // Установлено текущее время
+	}
+
+	// Сохранение кассира в базе данных
+	if err := db.DB.Create(&cashier).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to create cashier: " + err.Error(),
+		})
+	}
+
+	return c.Status(201).JSON(fiber.Map{ // Изменено на 201
+		"success": true,
+		"message": "Cashier added successfully",
+		"data":    cashier,
+	})
+}
+func UpdateCashier(c *fiber.Ctx) error {
+	return nil
+}
+func EditCashier(c *fiber.Ctx) error {
+	return nil
+}
+func DeleteCashier(c *fiber.Ctx) error {
+	return nil
+}

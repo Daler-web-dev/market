@@ -2,27 +2,26 @@ package main
 
 import (
 	"fmt"
-	"os"
+	db "my-fiber-app/config"
+	"my-fiber-app/routes"
 
-	"github.com/joho/godotenv"
-	"gorm.io/gorm"
+	"github.com/gofiber/fiber/v2"
 )
 
-var DB *gorm.DB
-
 func main() {
+	fmt.Printf("Go sales api course started...")
+	db.Connect()
 
-	godotenv.Load()
+	app := fiber.New()
 
-	dbuser := os.Getenv("DB_USER")
-	dbpassword := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-	dbport := os.Getenv("DB_PORT")
+	// Middleware для выполнения перед каждым запросом
+	app.Use(func(c *fiber.Ctx) error {
+		fmt.Println("Middleware executed")
+		return c.Next()
+	})
 
-	fmt.Println(
-		dbuser,
-		dbpassword,
-		dbname,
-		dbport)
+	routes.Setup(app)
+
+	app.Listen(":8080")
 
 }
