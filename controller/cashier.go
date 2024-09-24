@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"my-fiber-app/models"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	db "my-fiber-app/config"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 func validateCashierInput(data map[string]string, requiredFields []string) (string, bool) {
@@ -55,7 +57,46 @@ func CahierList(c *fiber.Ctx) error {
 	})
 }
 func GetCashierDetails(c *fiber.Ctx) error {
-	return nil
+	// Получаем cashierId из параметров
+	cashierId := c.Params("cashierId")
+	if cashierId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "cashierId is required",
+		})
+	}
+
+	var cashier models.Cashier
+
+	// Запрос к базе данных с обработкой ошибок
+	if err := db.DB.Select("id, name").Where("id = ?", cashierId).First(&cashier).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "Cashier not found",
+			})
+		}
+		// В случае других ошибок базы данных
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Database error",
+		})
+	}
+
+	// Формируем данные для ответа
+	cashierData := map[string]interface{}{
+		"cashierId": cashier.Id,
+		"name":      cashier.Name,
+		"createdAt": cashier.CreatedAt,
+		"updatedAt": cashier.UpdatedAt,
+	}
+
+	// Возвращаем успешный ответ с данными кассира
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Cashier details",
+		"data":    cashierData,
+	})
 }
 func CreateCashier(c *fiber.Ctx) error {
 	var data map[string]string
@@ -100,11 +141,103 @@ func CreateCashier(c *fiber.Ctx) error {
 	})
 }
 func UpdateCashier(c *fiber.Ctx) error {
-	return nil
+	// Получаем cashierId из параметров
+	cashierId := c.Params("cashierId")
+	if cashierId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "cashierId is required",
+		})
+	}
+
+	var cashier models.Cashier
+
+	// Запрос к базе данных с сохранением результата в dbResult
+	dbResult := db.DB.Find(&cashier, "id = ?", cashierId)
+
+	// Проверка ошибки, если она есть
+	if dbResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Database error",
+		})
+	}
+
+	// Проверяем, найдена ли запись
+	if dbResult.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Cashier not found",
+		})
+	}
+
+	// Логика обновления кассира (не включена в текущий код)
+	var updatedCashier models.Cashier
+	err := c.BodyParser(&updatedCashier)
+	if err != nil {
+		return err
+	}
+
+	cashier.Name = updatedCashier.Name // пример изменения данных
+
+	// Сохранение изменений
+	if err := db.DB.Save(&cashier).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to update cashier",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Cashier updated successfully",
+		"data":    cashier,
+	})
 }
 func EditCashier(c *fiber.Ctx) error {
 	return nil
 }
 func DeleteCashier(c *fiber.Ctx) error {
-	return nil
+	cashierId := c.Params("cashierId")
+
+	// Проверка, что cashierId передан
+	if cashierId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "CashierId is required",
+		})
+	}
+
+	// Проверка на числовое значение cashierId (если это ожидается)
+	if _, err := strconv.Atoi(cashierId); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid cashierId format",
+		})
+	}
+
+	var cashier models.Cashier
+	dbResult := db.DB.Where("id = ?", cashierId).Delete(&cashier)
+
+	// Проверка на наличие ошибок базы данных
+	if dbResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Database error",
+		})
+	}
+
+	// Проверка, была ли запись найдена и удалена
+	if dbResult.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Cashier not found",
+		})
+	}
+
+	// Успешное удаление кассира
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Cashier deleted successfully",
+	})
 }

@@ -12,8 +12,8 @@ func Setup(app *fiber.App) {
 	// app.Post("/cashiers/:cashierId/passcode", controller.Login)
 
 	app.Get("/cashiers", controller.CahierList)
+	app.Get("/cashiers/:cashierId", controller.GetCashierDetails)
 	app.Post("/cashiers", controller.CreateCashier)
-	app.Get("/cashiers/:cashierId", controller.EditCashier)
-	app.Get("/cashiers/:cashierId", controller.UpdateCashier)
-	app.Get("/cashiers/:cashierId", controller.DeleteCashier)
+	app.Patch("/cashiers/:cashierId", controller.UpdateCashier)
+	app.Delete("/cashiers/:cashierId", controller.DeleteCashier)
 }
